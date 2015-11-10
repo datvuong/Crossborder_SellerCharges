@@ -38,7 +38,5 @@ loadInvoiceData <- function(invoiceFolder, runningFolder){
         arrange(Tracking_number)
     noDuplicated <- filter(invoiceData, !(Tracking_number %in% duplicatedTrackingNumber))
     
-    write.csv(duplicatedInvoiceData, file.path("../../2_Output",runningFolder,"duplicatedInvoiceData.csv"),
-              row.names = FALSE)
     noDuplicated
 }
