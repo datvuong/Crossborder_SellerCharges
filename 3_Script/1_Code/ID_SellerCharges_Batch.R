@@ -7,8 +7,12 @@ source("../1_Code/fn_loadInvoiceData.R")
 source("../1_Code/fn_loadRateCard.R")
 source("../1_Code/fn_loadOMSData.R")
 source("../1_Code/fn_loadOldSellerCharges.R")
+source("../1_Code/fn_LoadLGS3PL.R")
+source("../1_Code/fn_LoadSellerList.R")
+source("../1_Code/fn_LoadCurrencyExchange.R")
 
-runningFodlerName <- "20151009"
+runningFodlerName <- format(Sys.Date(), "%Y%m%d")
+
 invoiceFolder <- file.path("../../1_Input","Invoices")
 
 venture <- "Indonesia"
@@ -18,18 +22,25 @@ ventureShort <- switch (venture,
 
 currencyExchange <- LoadCurrencyExchange(venture)
 sellerList <- LoadSellerList(venture)
+deliveryCompanyList <- LoadLGS3PL(venture)
 outputFolder <- file.path("../../2_Output",runningFodlerName)
 if(!dir.exists(outputFolder))
   dir.create(outputFolder)
+outputFolder <- file.path("../../2_Output",runningFodlerName,venture)
+if(!dir.exists(outputFolder))
+  dir.create(outputFolder)
+SCUploadFolder <- file.path(outputFolder, "SC_Upload_Final")
+if(!dir.exists(SCUploadFolder))
+  dir.create(SCUploadFolder)
 
 InvoiceData <- loadInvoiceData(invoiceFolder)
 RateCard <- loadRateCard(file.path("../../1_Input/Ratecards",paste0(ventureShort,"_Ratecard.csv")))
 omsData <- loadOMSData("../../1_Input/OMS_Data")
 chargedItem <- loadOldSellerCharges("../../1_Input/SellerCharged", omsData)
-unique(omsData$Item_Status)
 cbItem <- filter(omsData, tax_class == "international",
                  !is.na(Cancelled_Date) | !is.na(Delivered_Date), Item_Status != "shipped")
-
+cbItem <- filter(cbItem, 
+                       grepl(deliveryCompanyList, shipment_provider_name))
 mappedData <- left_join(cbItem,InvoiceData,
                         by = c("tracking_number" = "Tracking_number"))
 
@@ -115,7 +126,7 @@ write.csv(tobeCharged, file.path(outputFolder, "Tobecharded_Raw.csv"),
 write.csv(FinalData, file.path(outputFolder, "Final_Data_UploadtoSC.csv"),
           row.names = FALSE)
 
-SaveBatchUploadedFile(FinalData, outputFolder)
+SaveBatchUploadedFile(FinalData, SCUploadFolder)
 
 length(unique(tobeCharged$tracking_number))
 
